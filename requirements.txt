@@ -1,12 +1,10 @@
 streamlit
-plotly
-pandas
-numpy
-scikit-learn
+tensorflow==2.15.1
+numpy==1.26.4
+pandas==2.2.3
+scikit-learn==1.5.2
 matplotlib
 Pillow
 opencv-python-headless
+plotly
 seaborn
-jupyter
-ipykernel
-tensorflow==2.21.0
