@@ -1,0 +1,14 @@
+{
+    "cnn": {
+        "accuracy": 0.1991869918699187,
+        "precision_macro": 0.049796747967479675,
+        "recall_macro": 0.25,
+        "f1_macro": 0.08305084745762711
+    },
+    "efficientnet": {
+        "accuracy": 0.2886178861788618,
+        "precision_macro": 0.3142067083243554,
+        "recall_macro": 0.34259259259259256,
+        "f1_macro": 0.24057102274477904
+    }
+}

@@ -1,0 +1,11 @@
+[server]
+maxUploadSize = 50
+enableXsrfProtection = true
+
+[theme]
+primaryColor = "#3F51B5"
+
+[browser]
+gatherUsageStats = false
+[client]
+toolbarMode = "minimal"

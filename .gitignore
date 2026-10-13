@@ -1,0 +1,51 @@
+# Python environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python cache and compiled files
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# Secrets and local environment configuration
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Local logs and temporary files
+*.log
+.DS_Store
+Thumbs.db
+.streamlit/cache/
+
+# ML experiment tracking and temporary outputs
+mlruns/
+wandb/
+runs/
+lightning_logs/
+tmp/
+temp/
+
+# Large model checkpoints - keep lightweight, intentional artifacts only
+*.h5
+*.keras
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.pb
+
+# Local datasets - publish download instructions instead
+data/Tumour/
+data/train/
+data/valid/
+data/test/
+
+# Local virtual environment and generated cache
+.cache/

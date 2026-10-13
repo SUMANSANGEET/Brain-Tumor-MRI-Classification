@@ -1,0 +1,22 @@
+{
+  "model_name": "ResNet50V2",
+  "stage": "baseline",
+  "img_size": 224,
+  "class_names": [
+    "glioma",
+    "meningioma",
+    "no_tumor",
+    "pituitary"
+  ],
+  "last_conv_layer": "resnet50v2",
+  "metrics": {
+    "accuracy": 0.8746928746928747,
+    "precision": 0.8744694847636023,
+    "recall": 0.8665655240282106,
+    "f1_macro": 0.8640242937121311,
+    "roc_auc": 0.9759944160672633,
+    "val_f1_macro": 0.888348878233437,
+    "params_M": 24.090372,
+    "infer_ms": 111.98910917052473
+  }
+}
