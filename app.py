@@ -526,8 +526,9 @@ with tab_live:
         with c1:
             st.markdown("##### Uploaded MRI")
             st.image(
-                to_png_bytes(r["img"]),
+                r["img"].convert("RGB"),
                 caption="Uploaded MRI",
+                output_format="PNG",
                 width="stretch",
             )
 
@@ -581,21 +582,41 @@ with tab_live:
             g1, g2, g3 = st.columns(3) if cam is not None else (st.container(),) * 3
             
             if cam is not None:
+                # Convert all arrays to valid uint8 RGB images.
+                model_input_img = np.clip(r["arr"], 0, 255).astype(np.uint8)
+                heat_img = np.clip(heat, 0, 255).astype(np.uint8)
+                overlay_img = np.clip(over, 0, 255).astype(np.uint8)
+
                 g1.image(
-                    to_png_bytes(r["arr"]),
+                    np.ascontiguousarray(model_input_img),
                     caption=f"Model input ({img_size}×{img_size})",
+                    output_format="PNG",
+                    channels="RGB",
                     width="stretch",
                 )
+
                 g2.image(
-                    to_png_bytes(heat),
+                    np.ascontiguousarray(heat_img),
                     caption="Activation heat-map",
+                    output_format="PNG",
+                    channels="RGB",
                     width="stretch",
                 )
+
                 g3.image(
-                    to_png_bytes(over),
+                    np.ascontiguousarray(overlay_img),
                     caption="Overlay — red = most influential",
+                    output_format="PNG",
+                    channels="RGB",
                     width="stretch",
                 )
+                
+        else:
+            st.warning(
+                "Grad-CAM could not be generated for this model. "
+                "The MRI prediction may still be available."
+            )
+
 
             st.caption("A trustworthy explanation highlights brain tissue / the lesion (for pituitary: the sellar region). "
                        "Heat on the black background or image border would signal a shortcut.")
