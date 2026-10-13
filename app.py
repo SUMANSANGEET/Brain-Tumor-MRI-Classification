@@ -395,7 +395,7 @@ with tab_live:
             "Drop one or more brain MRI slices (JPG / PNG)", 
             type=["jpg", "jpeg", "png"], 
             accept_multiple_files=True)
-        )
+        
         for f in files or []:
             try:
                 with Image.open(io.BytesIO(f.getvalue())) as uploaded:
