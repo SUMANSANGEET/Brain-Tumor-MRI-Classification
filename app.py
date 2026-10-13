@@ -15,6 +15,7 @@ Env / secrets (all optional):
 Research prototype - NOT a medical device.
 """
 from __future__ import annotations
+from huggingface_hub import hf_hub_download
 
 import hashlib
 import io
@@ -126,13 +127,80 @@ def read_meta(model_dir: str) -> dict:
             "last_conv_layer": None, "metrics": {}}
 
 
+HF_REPO_ID = "sumansangeet789/brain-tumor-mri-model"
+
+HF_MODEL_FILES = {
+    "Deployed best: ResNet50V2 (baseline)": "best_model.h5",
+    "Deployed best: best_model.keras": "best_model.keras",
+    "Custom CNN best": "Custom_CNN_best.keras",
+    "CustomCNN tuned": "CustomCNN_tuned.h5",
+    "EfficientNetB0 tuned": "EfficientNetB0_tuned.h5",
+    "MobileNetV2 tuned": "MobileNetV2_tuned.h5",
+}
+
+
 
 def available_models() -> dict[str, Path]:
-    """Discover saved, full Keras models and expose friendly dropdown names."""
-    out: dict[str, Path] = {}
+    """List local models and known Hugging Face models without downloading them."""
+    out: dict[str, Path | str] = {}
 
-    if not MODEL_DIR.exists():
-        return out
+    
+HF_REPO_ID = "sumansangeet789/brain-tumor-mri-model"
+
+HF_MODEL_FILES = {
+    "Deployed best: ResNet50V2 (baseline)": "best_model.h5",
+    "Deployed best: best_model.keras": "best_model.keras",
+    "Custom CNN best": "Custom_CNN_best.keras",
+    "CustomCNN tuned": "CustomCNN_tuned.h5",
+    "EfficientNetB0 tuned": "EfficientNetB0_tuned.h5",
+    "MobileNetV2 tuned": "MobileNetV2_tuned.h5",
+}
+
+
+def available_models() -> dict[str, Path | str]:
+    """List local models and known Hugging Face models without downloading them."""
+    out: dict[str, Path | str] = {}
+
+    if MODEL_DIR.exists():
+        for path in sorted(MODEL_DIR.iterdir()):
+            if not path.is_file():
+                continue
+            if path.suffix.lower() not in {".h5", ".keras"}:
+                continue
+            if path.name.endswith(".weights.h5"):
+                continue
+            if "_head" in path.stem or "_ft" in path.stem:
+                continue
+
+            if path.name == "best_model.h5":
+                meta = read_meta(str(MODEL_DIR))
+                label = (
+                    f"Deployed best: "
+                    f"{meta.get('model_name', 'ResNet50V2')} "
+                    f"({meta.get('stage', 'baseline')})"
+                )
+            else:
+                label = path.stem.replace("_", " ")
+
+            out[label] = path
+
+    # Add remote choices only if an equivalent label is not already present.
+    for label, filename in HF_MODEL_FILES.items():
+        if label not in out:
+            out[label] = f"hf://{filename}"
+
+    return out
+
+
+@st.cache_data(show_spinner=False)
+def download_hf_model(filename: str) -> str:
+    """Download and cache only the selected model."""
+    return hf_hub_download(
+        repo_id=HF_REPO_ID,
+        filename=filename,
+        repo_type="model",
+    )
+
 
     # Existing deployed model — preserve current behavior.
     best = MODEL_DIR / "best_model.h5"
