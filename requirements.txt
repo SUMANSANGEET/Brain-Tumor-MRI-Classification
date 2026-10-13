@@ -9,3 +9,4 @@ opencv-python-headless
 seaborn
 jupyter
 ipykernel
+tensorflow==2.21.0
