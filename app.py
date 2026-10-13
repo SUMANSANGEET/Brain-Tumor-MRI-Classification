@@ -391,12 +391,19 @@ with tab_live:
     items: list[tuple[str, Image.Image, str | None]] = []  # (name, image, true label)
 
     if source.startswith("📁"):
-        files = st.file_uploader("Drop one or more brain MRI slices (JPG / PNG)", type=["jpg", "jpeg", "png"], accept_multiple_files=True)
+        files = st.file_uploader(
+            "Drop one or more brain MRI slices (JPG / PNG)", 
+            type=["jpg", "jpeg", "png"], 
+            accept_multiple_files=True)
+        )
         for f in files or []:
             try:
-                items.append((f.name, Image.open(io.BytesIO(f.getvalue())), None))
+                with Image.open(io.BytesIO(f.getvalue())) as uploaded:
+                    img = ImageOps.exif_transpose(uploaded).convert("RGB").copy()
+                items.append((f.name, img, None))
             except Exception:
-                st.warning(f"Could not read **{f.name}** - skipped (is it a valid image?).")
+                st.warning(f"Could not read **{f.name}** — skipped.")
+
     elif source.startswith("📷"):
         shot = st.camera_input("Capture an MRI film or screen")
         if shot:
@@ -465,8 +472,9 @@ with tab_live:
         with c1:
             st.markdown("##### Uploaded MRI")
             st.image(
-                r["img"].convert("RGB"),
+                to_png_bytes(r["img"].convert("RGB")),
                 caption="Uploaded MRI",
+                output_format="PNG",
                 width="stretch",
             )
 
