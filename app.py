@@ -126,24 +126,6 @@ def read_meta(model_dir: str) -> dict:
     return {"model_name": "ResNet50V2", "stage": "baseline", "img_size": 224, "class_names": DEFAULT_CLASSES,
             "last_conv_layer": None, "metrics": {}}
 
-
-HF_REPO_ID = "sumansangeet789/brain-tumor-mri-model"
-
-HF_MODEL_FILES = {
-    "Deployed best: ResNet50V2 (baseline)": "best_model.h5",
-    "Deployed best: best_model.keras": "best_model.keras",
-    "Custom CNN best": "Custom_CNN_best.keras",
-    "CustomCNN tuned": "CustomCNN_tuned.h5",
-    "EfficientNetB0 tuned": "EfficientNetB0_tuned.h5",
-    "MobileNetV2 tuned": "MobileNetV2_tuned.h5",
-}
-
-
-
-def available_models() -> dict[str, Path]:
-    """List local models and known Hugging Face models without downloading them."""
-    out: dict[str, Path | str] = {}
-
     
 HF_REPO_ID = "sumansangeet789/brain-tumor-mri-model"
 
@@ -200,54 +182,6 @@ def download_hf_model(filename: str) -> str:
         filename=filename,
         repo_type="model",
     )
-
-
-    # Existing deployed model — preserve current behavior.
-    best = MODEL_DIR / "best_model.h5"
-    if best.is_file():
-        m = read_meta(str(MODEL_DIR))
-        out[f"Deployed best: {m['model_name']} ({m['stage']})"] = best
-
-    # Expected filenames for the three tuned models.
-    expected = {
-        "CustomCNN tuned": [
-            "CustomCNN_tuned.keras",
-            "CustomCNN_tuned.h5",
-        ],
-        "EfficientNetB0 tuned": [
-            "EfficientNetB0_tuned.keras",
-            "EfficientNetB0_tuned.h5",
-        ],
-        "MobileNetV2 tuned": [
-            "MobileNetV2_tuned.keras",
-            "MobileNetV2_tuned.h5",
-        ],
-    }
-
-    for display_name, filenames in expected.items():
-        for filename in filenames:
-            path = MODEL_DIR / filename
-            if path.is_file():
-                out[display_name] = path
-                break
-
-    # Also expose other full model files, without duplicate entries.
-    for pattern in ("*.keras", "*.h5"):
-        for path in sorted(MODEL_DIR.glob(pattern)):
-            if (
-                not path.is_file()
-                or path.name.endswith(".weights.h5")
-                or "_head" in path.stem
-                or "_ft" in path.stem
-                or path.name == "best_model.h5"
-            ):
-                continue
-
-            display_name = path.stem.replace("_", " ")
-            out.setdefault(display_name, path)
-
-    return out
-
 
 
 @st.cache_resource(show_spinner="Loading model into memory...")
@@ -422,6 +356,11 @@ with st.sidebar:
     st.warning("**Research prototype - not a medical device.** Outputs must be reviewed by a qualified radiologist.")
 
 model_path = models[model_label]
+
+if isinstance(model_path, str) and model_path.startswith("hf://"):
+    filename = model_path.removeprefix("hf://")
+    model_path = Path(download_hf_model(filename))
+
 model = load_model(str(model_path))
 is_deployed = model_path.name == "best_model.h5"
 cam_layer = find_cam_layer(model, meta.get("last_conv_layer") if is_deployed else None)
@@ -528,7 +467,6 @@ with tab_live:
             st.image(
                 r["img"].convert("RGB"),
                 caption="Uploaded MRI",
-                output_format="PNG",
                 width="stretch",
             )
 
@@ -582,41 +520,46 @@ with tab_live:
             g1, g2, g3 = st.columns(3) if cam is not None else (st.container(),) * 3
             
             if cam is not None:
-                # Convert all arrays to valid uint8 RGB images.
-                model_input_img = np.clip(r["arr"], 0, 255).astype(np.uint8)
-                heat_img = np.clip(heat, 0, 255).astype(np.uint8)
-                overlay_img = np.clip(over, 0, 255).astype(np.uint8)
+                model_input_img = Image.fromarray(
+                    np.ascontiguousarray(
+                        np.clip(r["arr"], 0, 255).astype(np.uint8)
+                    )
+                ).convert("RGB")
+
+                heat_img = Image.fromarray(
+                    np.ascontiguousarray(
+                        np.clip(heat, 0, 255).astype(np.uint8)
+                    )
+                ).convert("RGB")
+
+                overlay_img = Image.fromarray(
+                     np.ascontiguousarray(
+                         np.clip(over, 0, 255).astype(np.uint8)
+                     )
+                ).convert("RGB")
 
                 g1.image(
-                    np.ascontiguousarray(model_input_img),
+                    to_png_bytes(model_input_img),
                     caption=f"Model input ({img_size}×{img_size})",
                     output_format="PNG",
-                    channels="RGB",
                     width="stretch",
                 )
 
                 g2.image(
-                    np.ascontiguousarray(heat_img),
+                    to_png_bytes(heat_img),
                     caption="Activation heat-map",
                     output_format="PNG",
-                    channels="RGB",
                     width="stretch",
                 )
 
                 g3.image(
-                    np.ascontiguousarray(overlay_img),
+                    to_png_bytes(overlay_img),
                     caption="Overlay — red = most influential",
                     output_format="PNG",
-                    channels="RGB",
                     width="stretch",
                 )
-                
-        else:
-            st.warning(
-                "Grad-CAM could not be generated for this model. "
-                "The MRI prediction may still be available."
-            )
 
+                
 
             st.caption("A trustworthy explanation highlights brain tissue / the lesion (for pituitary: the sellar region). "
                        "Heat on the black background or image border would signal a shortcut.")
