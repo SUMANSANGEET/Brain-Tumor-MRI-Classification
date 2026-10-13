@@ -37,20 +37,16 @@ from PIL import Image, ImageOps
 
 
 
-def to_png_bytes(image):
-    """Convert a PIL image or NumPy array to PNG bytes."""
-    if isinstance(image, np.ndarray):
-        image = np.asarray(image)
-        image = np.clip(image, 0, 255).astype(np.uint8)
-        image = Image.fromarray(np.ascontiguousarray(image))
-
-    if image.mode not in ("RGB", "RGBA", "L"):
-        image = image.convert("RGB")
-
-    buffer = io.BytesIO()
-    image.save(buffer, format="PNG")
-    buffer.seek(0)
-    return buffer.getvalue()
+def to_png_bytes(img):
+    """Convert a PIL image or numpy array to PNG bytes for st.image."""
+    if isinstance(img, np.ndarray):
+        arr = img
+        if arr.dtype != np.uint8:
+            arr = (arr * 255).clip(0, 255).astype(np.uint8) if arr.max() <= 1.0 else arr.clip(0, 255).astype(np.uint8)
+        img = Image.fromarray(arr.squeeze())
+    buf = io.BytesIO()
+    img.convert("RGB").save(buf, format="PNG")
+    return buf.getvalue()
 
 
 # --------------------------------------------------------------------------- config
