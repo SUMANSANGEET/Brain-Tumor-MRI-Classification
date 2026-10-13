@@ -277,6 +277,25 @@ def preprocess(img: Image.Image, size: int) -> np.ndarray:
     return np.asarray(img, dtype="float32")
 
 
+def to_png_bytes(image) -> bytes:
+    """Convert a PIL image or NumPy array into PNG bytes."""
+    buffer = io.BytesIO()
+
+    if isinstance(image, Image.Image):
+        pil_image = image
+    else:
+        array = np.asarray(image)
+
+        if array.dtype != np.uint8:
+            array = np.clip(array, 0, 255).astype(np.uint8)
+
+        pil_image = Image.fromarray(array)
+
+    pil_image.save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+
 def colourfulness(arr: np.ndarray) -> float:
     r, g, b = arr[..., 0], arr[..., 1], arr[..., 2]
     return float(np.mean(np.abs(r - g) + np.abs(g - b)))
