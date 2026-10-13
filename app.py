@@ -35,6 +35,24 @@ import plotly.graph_objects as go
 import streamlit as st
 from PIL import Image, ImageOps
 
+
+
+def to_png_bytes(image):
+    """Convert a PIL image or NumPy array to PNG bytes."""
+    if isinstance(image, np.ndarray):
+        image = np.asarray(image)
+        image = np.clip(image, 0, 255).astype(np.uint8)
+        image = Image.fromarray(np.ascontiguousarray(image))
+
+    if image.mode not in ("RGB", "RGBA", "L"):
+        image = image.convert("RGB")
+
+    buffer = io.BytesIO()
+    image.save(buffer, format="PNG")
+    buffer.seek(0)
+    return buffer.getvalue()
+
+
 # --------------------------------------------------------------------------- config
 st.set_page_config(page_title="Brain Tumor MRI Classifier", page_icon="🧠", layout="wide")
 
@@ -211,22 +229,7 @@ def preprocess(img: Image.Image, size: int) -> np.ndarray:
     return np.asarray(img, dtype="float32")
 
 
-def to_png_bytes(image) -> bytes:
-    """Convert a PIL image or NumPy array into PNG bytes."""
-    buffer = io.BytesIO()
 
-    if isinstance(image, Image.Image):
-        pil_image = image
-    else:
-        array = np.asarray(image)
-
-        if array.dtype != np.uint8:
-            array = np.clip(array, 0, 255).astype(np.uint8)
-
-        pil_image = Image.fromarray(array)
-
-    pil_image.save(buffer, format="PNG")
-    return buffer.getvalue()
 
 
 
@@ -471,10 +474,12 @@ with tab_live:
         c1, c2, c3 = st.columns([1, 1.15, 1.25])
         with c1:
             st.markdown("##### Uploaded MRI")
+            
+            uploaded_display = r["img"].convert("RGB")
+
             st.image(
-                to_png_bytes(r["img"].convert("RGB")),
-                caption="Uploaded MRI",
-                output_format="PNG",
+                uploaded_display,
+                caption=f"Uploaded MRI: {r['name']}",
                 width="stretch",
             )
 
@@ -513,103 +518,123 @@ with tab_live:
                 st.info(f"Meningioma probability is {probs[mi]:.0%}. Meningioma is this model's weakest class "
                         "(recall ≈ 65% on the test set), so a second look is advised.")
 
+        
         # ---- Grad-CAM
         if show_cam:
             st.subheader("🔍 Where the model is looking (Grad-CAM)")
-            cls_choice = st.selectbox("Explain class", [PRETTY.get(c, c) for c in classes], index=top, key="camcls",
-                                      help="Heat-map of the evidence for the chosen class. Default is the predicted class.")
-            idx = [PRETTY.get(c, c) for c in classes].index(cls_choice)
+
+            cls_labels = [PRETTY.get(c, c) for c in classes]
+
+            cls_choice = st.selectbox(
+                "Explain class",
+                cls_labels,
+                index=top,
+                key="camcls",
+                help="Select the class whose activation map you want to inspect.",
+            )
+            idx = cls_labels.index(cls_choice)
+
             try:
                 cam = gradcam(model, cam_layer, r["arr"], idx)
+
+                if cam is None or np.asarray(cam).size == 0:
+                    raise ValueError("Grad-CAM returned an empty heat-map.")
+
+                heat, over = heat_overlay(r["arr"], cam, cam_alpha)
+
+                # Convert the model input to a valid RGB image.
+                model_input = np.asarray(r["arr"])
+
+                if model_input.ndim == 2:
+                    model_input = np.stack([model_input] * 3, axis=-1)
+                elif model_input.ndim == 3 and model_input.shape[-1] == 1:
+                    model_input = np.repeat(model_input, 3, axis=-1)
+
+                if model_input.ndim != 3 or model_input.shape[-1] < 3:
+                    raise ValueError(
+                        f"Unexpected model input shape: {model_input.shape}"
+                    )
+
+                model_input = np.clip(
+                    model_input[..., :3], 0, 255
+                ).astype(np.uint8)
+
+                def make_rgb_image(array, image_name):
+                    array = np.asarray(array)
+
+                    if array.ndim != 3 or array.shape[-1] < 3:
+                        raise ValueError(
+                            f"{image_name} has invalid shape: {array.shape}"
+                        )
+
+                    array = np.clip(
+                        array[..., :3], 0, 255
+                    ).astype(np.uint8)
+
+                    return Image.fromarray(
+                        np.ascontiguousarray(array)
+                    ).convert("RGB")
+
+                input_image = Image.fromarray(
+                    np.ascontiguousarray(model_input)
+                ).convert("RGB")
+
+                heat_image = make_rgb_image(heat, "Heat-map")
+                overlay_image = make_rgb_image(over, "Overlay")
+
+                # Keep all three images at the same display size.
+                display_size = (img_size, img_size)
+
+                input_image = input_image.resize(
+                    display_size, Image.Resampling.BILINEAR
+                )
+                heat_image = heat_image.resize(
+                    display_size, Image.Resampling.BILINEAR
+                )
+                overlay_image = overlay_image.resize(
+                    display_size, Image.Resampling.BILINEAR
+                )
+
+                g1, g2, g3 = st.columns(3)
+
+                with g1:
+                    st.image(
+                        input_image,
+                        caption=f"Model input ({img_size} × {img_size})",
+                        width="stretch",
+                    )
+
+                with g2:
+                    st.image(
+                        heat_image,
+                        caption="Activation heat-map",
+                        width="stretch",
+                    )
+
+                with g3:
+                    st.image(
+                        overlay_image,
+                        caption="Grad-CAM overlay",
+                        width="stretch",
+                    )
+
+                st.caption(
+                    "Grad-CAM highlights image regions influencing the selected "
+                    "class score. Red regions indicate stronger activation in "
+                    "this visualization, not proof of a tumor."
+                )
+
             except Exception as exc:
-                st.info(f"Grad-CAM is not available for this model ({exc}).")
-                cam = None
-            heat, over = (
-                heat_overlay(r["arr"], cam, cam_alpha)
-                if cam is not None
-                else (None, None)
-            )
+                st.warning(
+                    f"Grad-CAM could not be generated: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+                st.info(
+                    "The prediction can still be displayed if inference succeeded. "
+                    "Check the selected model's convolutional layer and the "
+                    "Streamlit deployment logs."
+                )
 
-            if cam is not None:
-                try:
-                    # Ensure every image is valid RGB uint8 data.
-                    model_input = np.asarray(r["arr"])
-
-                    if model_input.ndim == 2:
-                        model_input = np.stack([model_input] * 3, axis=-1)
-                    elif model_input.ndim == 3 and model_input.shape[-1] == 1:
-                        model_input = np.repeat(model_input, 3, axis=-1)
-
-                    model_input = np.clip(
-                        model_input, 0, 255
-                    ).astype(np.uint8)
-
-                    heat_array = np.asarray(heat)
-                    overlay_array = np.asarray(over)
-
-                    if heat_array.ndim != 3 or heat_array.shape[-1] < 3:
-                        raise ValueError(
-                            f"Invalid heat-map shape: {heat_array.shape}"
-                        )
-
-                    if overlay_array.ndim != 3 or overlay_array.shape[-1] < 3:
-                        raise ValueError(
-                            f"Invalid overlay shape: {overlay_array.shape}"
-                        )
-
-                    heat_array = np.clip(
-                        heat_array[..., :3], 0, 255
-                    ).astype(np.uint8)
-
-                    overlay_array = np.clip(
-                        overlay_array[..., :3], 0, 255
-                    ).astype(np.uint8)
-
-                    # Convert arrays to PIL images.
-                    input_image = Image.fromarray(
-                        np.ascontiguousarray(model_input)
-                    ).convert("RGB")
-
-                    heat_image = Image.fromarray(
-                        np.ascontiguousarray(heat_array)
-                    ).convert("RGB")
-
-                    overlay_image = Image.fromarray(
-                        np.ascontiguousarray(overlay_array)
-                    ).convert("RGB")
-
-                    g1, g2, g3 = st.columns(3)
-
-                    with g1:
-                        st.image(
-                            input_image,
-                            caption=f"Model input ({img_size}×{img_size})",
-                            width="stretch",
-                        )
-
-                    with g2:
-                        st.image(
-                            heat_image,
-                            caption="Activation heat-map",
-                            width="stretch",
-                        )
-
-                    with g3:
-                        st.image(
-                            overlay_image,
-                            caption="Overlay — red indicates stronger activation",
-                            width="stretch",
-                        )
-
-                except Exception as exc:
-                    st.error(
-                        f"Could not display Grad-CAM images: "
-                        f"{type(exc).__name__}: {exc}"
-                    )
-                    st.info(
-                        "The uploaded MRI and prediction may still work. "
-                        "Check the deployment logs for the Grad-CAM error."
-                    )
 
 
     # ---- live session analytics
