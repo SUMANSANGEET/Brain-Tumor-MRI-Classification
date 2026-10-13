@@ -358,15 +358,29 @@ with st.sidebar:
     st.divider()
     st.warning("**Research prototype - not a medical device.** Outputs must be reviewed by a qualified radiologist.")
 
+
 model_path = models[model_label]
 
-if isinstance(model_path, str) and model_path.startswith("hf://"):
-    filename = model_path.removeprefix("hf://")
-    model_path = Path(download_hf_model(filename))
+# Download the selected model if it is hosted on Hugging Face,
+# then load it with a readable error message if anything fails.
+try:
+    if isinstance(model_path, str) and model_path.startswith("hf://"):
+        filename = model_path.removeprefix("hf://")
+        model_path = Path(download_hf_model(filename))
 
-model = load_model(str(model_path))
+    model = load_model(str(model_path))
+
+except Exception as exc:
+    st.error("The selected model could not be downloaded or loaded.")
+    st.exception(exc)
+    st.stop()
+
 is_deployed = model_path.name == "best_model.h5"
-cam_layer = find_cam_layer(model, meta.get("last_conv_layer") if is_deployed else None)
+cam_layer = find_cam_layer(
+    model,
+    meta.get("last_conv_layer") if is_deployed else None
+)
+
 
 lb = load_leaderboard(str(MODEL_DIR))
 if is_deployed:
