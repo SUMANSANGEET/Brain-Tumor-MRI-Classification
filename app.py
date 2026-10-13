@@ -524,53 +524,93 @@ with tab_live:
             except Exception as exc:
                 st.info(f"Grad-CAM is not available for this model ({exc}).")
                 cam = None
-            heat, over = heat_overlay(r["arr"], cam, cam_alpha) if cam is not None else (None, None)
-            g1, g2, g3 = st.columns(3) if cam is not None else (st.container(),) * 3
-            
+            heat, over = (
+                heat_overlay(r["arr"], cam, cam_alpha)
+                if cam is not None
+                else (None, None)
+            )
+
             if cam is not None:
-                model_input_img = Image.fromarray(
-                    np.ascontiguousarray(
-                        np.clip(r["arr"], 0, 255).astype(np.uint8)
+                try:
+                    # Ensure every image is valid RGB uint8 data.
+                    model_input = np.asarray(r["arr"])
+
+                    if model_input.ndim == 2:
+                        model_input = np.stack([model_input] * 3, axis=-1)
+                    elif model_input.ndim == 3 and model_input.shape[-1] == 1:
+                        model_input = np.repeat(model_input, 3, axis=-1)
+
+                    model_input = np.clip(
+                        model_input, 0, 255
+                    ).astype(np.uint8)
+
+                    heat_array = np.asarray(heat)
+                    overlay_array = np.asarray(over)
+
+                    if heat_array.ndim != 3 or heat_array.shape[-1] < 3:
+                        raise ValueError(
+                            f"Invalid heat-map shape: {heat_array.shape}"
+                        )
+
+                    if overlay_array.ndim != 3 or overlay_array.shape[-1] < 3:
+                        raise ValueError(
+                            f"Invalid overlay shape: {overlay_array.shape}"
+                        )
+
+                    heat_array = np.clip(
+                        heat_array[..., :3], 0, 255
+                    ).astype(np.uint8)
+
+                    overlay_array = np.clip(
+                        overlay_array[..., :3], 0, 255
+                    ).astype(np.uint8)
+
+                    # Convert arrays to PIL images.
+                    input_image = Image.fromarray(
+                        np.ascontiguousarray(model_input)
+                    ).convert("RGB")
+
+                    heat_image = Image.fromarray(
+                        np.ascontiguousarray(heat_array)
+                    ).convert("RGB")
+
+                    overlay_image = Image.fromarray(
+                        np.ascontiguousarray(overlay_array)
+                    ).convert("RGB")
+
+                    g1, g2, g3 = st.columns(3)
+
+                    with g1:
+                        st.image(
+                            input_image,
+                            caption=f"Model input ({img_size}×{img_size})",
+                            width="stretch",
+                        )
+
+                    with g2:
+                        st.image(
+                            heat_image,
+                            caption="Activation heat-map",
+                            width="stretch",
+                        )
+
+                    with g3:
+                        st.image(
+                            overlay_image,
+                            caption="Overlay — red indicates stronger activation",
+                            width="stretch",
+                        )
+
+                except Exception as exc:
+                    st.error(
+                        f"Could not display Grad-CAM images: "
+                        f"{type(exc).__name__}: {exc}"
                     )
-                ).convert("RGB")
-
-                heat_img = Image.fromarray(
-                    np.ascontiguousarray(
-                        np.clip(heat, 0, 255).astype(np.uint8)
+                    st.info(
+                        "The uploaded MRI and prediction may still work. "
+                        "Check the deployment logs for the Grad-CAM error."
                     )
-                ).convert("RGB")
 
-                overlay_img = Image.fromarray(
-                     np.ascontiguousarray(
-                         np.clip(over, 0, 255).astype(np.uint8)
-                     )
-                ).convert("RGB")
-
-                g1.image(
-                    to_png_bytes(model_input_img),
-                    caption=f"Model input ({img_size}×{img_size})",
-                    output_format="PNG",
-                    width="stretch",
-                )
-
-                g2.image(
-                    to_png_bytes(heat_img),
-                    caption="Activation heat-map",
-                    output_format="PNG",
-                    width="stretch",
-                )
-
-                g3.image(
-                    to_png_bytes(overlay_img),
-                    caption="Overlay — red = most influential",
-                    output_format="PNG",
-                    width="stretch",
-                )
-
-                
-
-            st.caption("A trustworthy explanation highlights brain tissue / the lesion (for pituitary: the sellar region). "
-                       "Heat on the black background or image border would signal a shortcut.")
 
     # ---- live session analytics
     if st.session_state.history:
