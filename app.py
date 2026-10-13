@@ -20,6 +20,7 @@ import hashlib
 import io
 import json
 import os
+import tempfile
 import time
 import urllib.request
 from datetime import datetime
@@ -125,20 +126,60 @@ def read_meta(model_dir: str) -> dict:
             "last_conv_layer": None, "metrics": {}}
 
 
+
 def available_models() -> dict[str, Path]:
-    """Display-name -> file for every deployable .h5 (weights-only checkpoints are skipped)."""
+    """Discover saved, full Keras models and expose friendly dropdown names."""
     out: dict[str, Path] = {}
+
     if not MODEL_DIR.exists():
         return out
-    for f in sorted(MODEL_DIR.glob("*.h5")):
-        if f.name.endswith(".weights.h5") or "_head" in f.name or "_ft" in f.name:
-            continue
-        if f.name == "best_model.h5":
-            m = read_meta(str(MODEL_DIR))
-            out = {f"Deployed best: {m['model_name']} ({m['stage']})": f, **out}
-        else:
-            out[f.stem.replace("_", " ")] = f
+
+    # Existing deployed model — preserve current behavior.
+    best = MODEL_DIR / "best_model.h5"
+    if best.is_file():
+        m = read_meta(str(MODEL_DIR))
+        out[f"Deployed best: {m['model_name']} ({m['stage']})"] = best
+
+    # Expected filenames for the three tuned models.
+    expected = {
+        "CustomCNN tuned": [
+            "CustomCNN_tuned.keras",
+            "CustomCNN_tuned.h5",
+        ],
+        "EfficientNetB0 tuned": [
+            "EfficientNetB0_tuned.keras",
+            "EfficientNetB0_tuned.h5",
+        ],
+        "MobileNetV2 tuned": [
+            "MobileNetV2_tuned.keras",
+            "MobileNetV2_tuned.h5",
+        ],
+    }
+
+    for display_name, filenames in expected.items():
+        for filename in filenames:
+            path = MODEL_DIR / filename
+            if path.is_file():
+                out[display_name] = path
+                break
+
+    # Also expose other full model files, without duplicate entries.
+    for pattern in ("*.keras", "*.h5"):
+        for path in sorted(MODEL_DIR.glob(pattern)):
+            if (
+                not path.is_file()
+                or path.name.endswith(".weights.h5")
+                or "_head" in path.stem
+                or "_ft" in path.stem
+                or path.name == "best_model.h5"
+            ):
+                continue
+
+            display_name = path.stem.replace("_", " ")
+            out.setdefault(display_name, path)
+
     return out
+
 
 
 @st.cache_resource(show_spinner="Loading model into memory...")
