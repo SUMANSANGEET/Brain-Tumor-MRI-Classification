@@ -506,7 +506,12 @@ with tab_live:
         c1, c2, c3 = st.columns([1, 1.15, 1.25])
         with c1:
             st.markdown("##### Uploaded MRI")
-            st.image(r["img"], width="stretch")
+            st.image(
+                to_png_bytes(r["img"]),
+                caption="Uploaded MRI",
+                width="stretch",
+            )
+
         with c2:
             st.markdown("##### Prediction")
             st.markdown(
@@ -555,10 +560,24 @@ with tab_live:
                 cam = None
             heat, over = heat_overlay(r["arr"], cam, cam_alpha) if cam is not None else (None, None)
             g1, g2, g3 = st.columns(3) if cam is not None else (st.container(),) * 3
+            
             if cam is not None:
-                g1.image(r["arr"].astype(np.uint8), caption=f"Model input ({img_size}×{img_size})", width="stretch")
-                g2.image(heat, caption="Activation heat-map", width="stretch")
-                g3.image(over, caption="Overlay - red = most influential", width="stretch")
+                g1.image(
+                    to_png_bytes(r["arr"]),
+                    caption=f"Model input ({img_size}×{img_size})",
+                    width="stretch",
+                )
+                g2.image(
+                    to_png_bytes(heat),
+                    caption="Activation heat-map",
+                    width="stretch",
+                )
+                g3.image(
+                    to_png_bytes(over),
+                    caption="Overlay — red = most influential",
+                    width="stretch",
+                )
+
             st.caption("A trustworthy explanation highlights brain tissue / the lesion (for pituitary: the sellar region). "
                        "Heat on the black background or image border would signal a shortcut.")
 
