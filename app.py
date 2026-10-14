@@ -1,5 +1,5 @@
 """
-Brain Tumor MRI Classifier - interactive Streamlit app
+Brain Tumor MRI Image Classification - interactive Streamlit app
 ======================================================
 Real-time 4-class brain-MRI classification (glioma / meningioma / pituitary / no tumor)
 with confidence analytics, Grad-CAM explainability, test-time-augmentation stability
@@ -363,7 +363,7 @@ classes: list[str] = meta.get("class_names", DEFAULT_CLASSES)
 img_size = int(meta.get("img_size", 224))
 
 st.markdown(
-    '<div class="hero"><h1>🧠 Brain Tumor MRI Classifier</h1>'
+    '<div class="hero"><h1>🧠 Brain Tumor MRI Image Classification</h1>'
     "<p>Deep-learning decision support · glioma · meningioma · pituitary tumor · no tumor · "
     "real-time prediction with explainable AI</p></div>", unsafe_allow_html=True)
 
