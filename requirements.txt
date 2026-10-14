@@ -1,6 +1,6 @@
 streamlit==1.50.0
 tensorflow-cpu==2.16.2
-keras==3.3.3
+keras>=3.6
 numpy==1.26.4
 h5py
 huggingface_hub
