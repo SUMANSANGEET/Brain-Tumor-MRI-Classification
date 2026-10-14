@@ -101,8 +101,22 @@ DATASET_COUNTS = {"glioma": 805, "pituitary": 610, "meningioma": 545, "no_tumor"
 CSS = """
 <style>
 .block-container {padding-top: 2.2rem; max-width: 1280px;}
+.brand-header {display:flex; align-items:center; justify-content:space-between; gap:1.2rem; padding:1rem 1.15rem; margin:.1rem 0 1.2rem; border:1px solid rgba(60,145,210,.22); border-radius:18px; background:linear-gradient(115deg, rgba(22,116,178,.12), rgba(49,87,183,.045) 58%, rgba(32,196,232,.10));}
+.brand-lockup {display:flex; align-items:center; gap:.85rem; min-width:0;}
+.brand-mark {width:64px; height:64px; flex:0 0 64px; filter:drop-shadow(0 4px 8px rgba(20,90,150,.18));}
+.brand-mark svg {width:100%; height:100%; display:block;}
+.brand-name {font-size:clamp(1.45rem, 2.5vw, 2.05rem); line-height:1.05; font-weight:800; letter-spacing:-.045em; color:#17396D; white-space:nowrap;}
+.brand-name span {color:#20A9D7;}
+.brand-tagline {font-size:.82rem; margin-top:.3rem; color:var(--text-color); opacity:.72;}
+.brand-product {border-left:1px solid rgba(75,125,175,.35); padding-left:1.2rem;}
+.brand-product-title {font-weight:750; font-size:1rem; color:var(--text-color);}
+.brand-product-subtitle {font-size:.82rem; opacity:.7; margin-top:.3rem;}
+.brand-product-subtitle b {color:#20A9D7; padding:0 .2rem;}
+.hero {padding:.2rem .15rem .6rem;}
+.hero-kicker {font-size:.76rem; font-weight:800; letter-spacing:.14em; color:#159BC8; margin-bottom:.35rem;}
 .hero h1 {margin-bottom: .1rem;}
 .hero p {opacity: .75; margin-top: 0;}
+@media (max-width: 700px) {.brand-header {align-items:flex-start; flex-direction:column;} .brand-product {border-left:0; border-top:1px solid rgba(75,125,175,.35); padding: .8rem 0 0; width:100%;} .brand-mark {width:52px;height:52px;flex-basis:52px;}}
 .card {border-radius: 14px; padding: 1.1rem 1.25rem; background: rgba(128,128,128,.08); border-left: 6px solid var(--accent, #888);}
 .card .lbl {font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; opacity: .65;}
 .card .big {font-size: 1.9rem; font-weight: 700; line-height: 1.15;}
@@ -362,10 +376,46 @@ meta = read_meta(str(MODEL_DIR))
 classes: list[str] = meta.get("class_names", DEFAULT_CLASSES)
 img_size = int(meta.get("img_size", 224))
 
+# --------------------------------------------------------------------------- brand header / inline company logo
+# The logo is embedded as SVG so deployment does not depend on a separate image file.
 st.markdown(
-    '<div class="hero"><h1>🧠 Brain Tumor MRI Image Classification</h1>'
-    "<p>Deep-learning decision support · glioma · meningioma · pituitary tumor · no tumor · "
-    "real-time prediction with explainable AI</p></div>", unsafe_allow_html=True)
+    """
+    <div class="brand-header">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-label="MindScan AI logo">
+          <svg viewBox="0 0 72 72" role="img" aria-label="Brain scan logo" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="brainBlue" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#20C4E8"/><stop offset="100%" stop-color="#3157B7"/>
+              </linearGradient>
+            </defs>
+            <circle cx="36" cy="36" r="33" fill="url(#brainBlue)"/>
+            <circle cx="36" cy="36" r="27.5" fill="#0A2144" opacity=".24"/>
+            <path d="M35 17c-5-5-13-1-13 5-7 1-9 10-4 14-4 6 0 13 7 13 2 7 9 8 13 3V20c0-2-1-3-3-3Z" fill="none" stroke="#fff" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M37 17c5-5 13-1 13 5 7 1 9 10 4 14 4 6 0 13-7 13-2 7-9 8-13 3V20c0-2 1-3 3-3Z" fill="none" stroke="#D8F7FF" stroke-width="2.7" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 28h8m-4-4v8m16-4h8m-4-4v8M27 42l5-4m13 4-5-4" stroke="#8CEBFF" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="45" cy="27" r="7.5" fill="#FF704D" stroke="#FFE2A8" stroke-width="2"/>
+            <circle cx="45" cy="27" r="2.5" fill="#FFF4D7"/>
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <div class="brand-name">MindScan <span>AI</span></div>
+          <div class="brand-tagline">Smarter Scans. Healthier Tomorrows.</div>
+        </div>
+      </div>
+      <div class="brand-product">
+        <div class="brand-product-title">Brain Tumor MRI Image Classifier</div>
+        <div class="brand-product-subtitle">AI-Powered <b>·</b> Accurate <b>·</b> Explainable</div>
+      </div>
+    </div>
+    <div class="hero">
+      <div class="hero-kicker">BRAIN TUMOR MRI IMAGE CLASSIFIER</div>
+      <h1>Intelligent MRI Analysis</h1>
+      <p>Four-class image classification with confidence analytics, Grad-CAM explainability, and model comparison.</p>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 if not models:
     st.error("No model found. Copy `best_model.h5` and `model_meta.json` from the notebook's `artifacts/models/` "
