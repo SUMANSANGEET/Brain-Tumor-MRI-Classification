@@ -211,7 +211,28 @@ def download_hf_model(filename: str) -> str:
 def load_model(path: str):
     import tensorflow as tf  # imported lazily so the UI paints quickly
 
-    return tf.keras.models.load_model(path, compile=False)
+    def _tolerant(cls):
+        class Tolerant(cls):
+            def __init__(self, *args, data_format=None, **kwargs):
+                super().__init__(*args, **kwargs)
+
+            @classmethod
+            def from_config(cls_, config):
+                config = dict(config)
+                config.pop("data_format", None)
+                return super().from_config(config)
+
+        Tolerant.__name__ = cls.__name__
+        return Tolerant
+
+    custom = {}
+    for name in ["RandomFlip", "RandomRotation", "RandomZoom", "RandomTranslation",
+                 "RandomContrast", "RandomBrightness", "RandomCrop", "Rescaling", "Resizing"]:
+        cls = getattr(tf.keras.layers, name, None)
+        if cls is not None:
+            custom[name] = _tolerant(cls)
+
+    return tf.keras.models.load_model(path, compile=False, custom_objects=custom)
 
 
 def find_cam_layer(model, wanted: str | None) -> str:
