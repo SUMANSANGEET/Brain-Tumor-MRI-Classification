@@ -49,6 +49,15 @@ def to_png_bytes(img):
     return buf.getvalue()
 
 
+
+def show_image(img, caption: str | None = None) -> None:
+    """Render an image inline as a base64 data-URI (avoids Streamlit's media-file endpoint)."""
+    import base64
+    b64 = base64.b64encode(to_png_bytes(img)).decode()
+    cap = f'<div class="small" style="text-align:center;margin-top:.25rem">{caption}</div>' if caption else ""
+    st.markdown(f'<img src="data:image/png;base64,{b64}" style="width:100%;border-radius:8px">{cap}',
+                unsafe_allow_html=True)
+
 # --------------------------------------------------------------------------- config
 st.set_page_config(page_title="Brain Tumor MRI Classifier", page_icon="🧠", layout="wide")
 
@@ -487,11 +496,7 @@ with tab_live:
             
             uploaded_display = r["img"].convert("RGB")
 
-            st.image(
-                uploaded_display,
-                caption=f"Uploaded MRI: {r['name']}",
-                width="stretch",
-            )
+            show_image(uploaded_display, f"Uploaded MRI: {r['name']}")
 
         with c2:
             st.markdown("##### Prediction")
@@ -608,25 +613,13 @@ with tab_live:
                 g1, g2, g3 = st.columns(3)
 
                 with g1:
-                    st.image(
-                        input_image,
-                        caption=f"Model input ({img_size} × {img_size})",
-                        width="stretch",
-                    )
+                    show_image(input_image, f"Model input ({img_size} × {img_size})")
 
                 with g2:
-                    st.image(
-                        heat_image,
-                        caption="Activation heat-map",
-                        width="stretch",
-                    )
+                    show_image(heat_image, "Activation heat-map")
 
                 with g3:
-                    st.image(
-                        overlay_image,
-                        caption="Grad-CAM overlay",
-                        width="stretch",
-                    )
+                    show_image(overlay_image, "Grad-CAM overlay")
 
                 st.caption(
                     "Grad-CAM highlights image regions influencing the selected "
